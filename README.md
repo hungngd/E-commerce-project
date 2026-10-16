@@ -65,33 +65,33 @@ Ngoài 5 cái chung chính ra còn có **data orchestration, data discovery, dat
 
 #### dlt
 
-sau khi đọc qua tôi thấy dùng dlt sẽ ok hơn là tự viết script ở thời điểm hiện tại. Do là ngta có sẵn 1 repo trên github để hướng dẫn mình sử dụng, có sẵn script để mình dựa vào đó để làm theo.
+Sau khi đọc qua em thấy dùng dlt sẽ ok hơn là tự viết script ở thời điểm hiện tại. Do là ngta có sẵn 1 repo trên github để hướng dẫn mình sử dụng, có sẵn script để mình dựa vào đó để làm theo.
 
 **Ưu điểm sẽ là**
 
-- nhẹ và tiết kiệm tài nguyên,
-- tự động suy luận kiểu dữ liệu và cấu trúc lại bảng,
-- tốc độ xử lý nhanh,
-- dễ dàng quản lý bằng git,
-- miễn phí và ko giới hạn tính năng.
+- Nhẹ và tiết kiệm tài nguyên,
+- Tự động suy luận kiểu dữ liệu và cấu trúc lại bảng,
+- Tốc độ xử lý nhanh,
+- Dễ dàng quản lý bằng git,
+- Miễn phí và ko giới hạn tính năng.
 
 **Nhược điểm sẽ là**
 
-- phải có kiến thức về python,
-- các thư viện connector có sẵn khá ít (chỉ có ở các nguồn dữ liệu phổ biến hiện nay)
+- Phải có kiến thức về python,
+- Các thư viện connector có sẵn khá ít (chỉ có ở các nguồn dữ liệu phổ biến hiện nay)
 
 #### Airbyte
 
 Và tiếp theo là Airbyte, cnay cũng có thể chạy local thông qua docker,
 
-**ưu điểm sẽ là** không cần tạo code để chạy chỉ cần install về máy và điền trực tiếp thông tin của SQL sever và snowflake trên giao diện UI khi kết nối luôn.
+**Ưu điểm sẽ là** không cần tạo code để chạy chỉ cần install về máy và điền trực tiếp thông tin của SQL sever và snowflake trên giao diện UI khi kết nối luôn.
 
 **Nhược điểm sẽ là**
 
-- ngốn ram,
-- tốc độ đồng bộ có thể sẽ không đc tối ưu như code thuần,
-- khó quản lý phiên bản,
-- và dùng bản free bị cắt giảm khác nhiều (ko phân quyền, không chia đc không gian làm việc cho mng trong các đội khác nhau --> Sau này ứng dụng trong doanh nghiệp thực tế nếu muốn trải nghiệm đầy đủ sẽ phải dùng bản trả phí).
+- Ngốn ram,
+- Tốc độ đồng bộ có thể sẽ không đc tối ưu như code thuần,
+- Khhó quản lý phiên bản,
+- Và dùng bản free bị cắt giảm khác nhiều (ko phân quyền, không chia đc không gian làm việc cho mng trong các đội khác nhau --> Sau này ứng dụng trong doanh nghiệp thực tế nếu muốn trải nghiệm đầy đủ sẽ phải dùng bản trả phí).
 
 --> Nó sẽ tiện lợi khi connect từ nhiều nguồn dữ liệu khác nhau, ko hợp với những database lớn.
 
@@ -99,7 +99,7 @@ Và tiếp theo là Airbyte, cnay cũng có thể chạy local thông qua docker
 
 Fivetran: Đây là 1 platform chạy thông qua đám mây nên là sẽ không bị tốn tài nguyên, tính ổn định cao và được tối ưu trong việc nhập dữ liệu (lấy dữ liệu real-time với độ trễ thấp)
 
-những chi phí sử dụng khác cao (tính tiền theo số lượng dòng dữ liệu có sự thay đổi hoặc được thêm mới trong tháng) và dữ liệu sẽ được đi qua bên thứ 3 (chạy qua hạ tầng của Fivetran) nên quá trình kiểm duyệt pháp lý sẽ khắt khe hơn.
+Nhưng chi phí sử dụng khác cao (tính tiền theo số lượng dòng dữ liệu có sự thay đổi hoặc được thêm mới trong tháng) và dữ liệu sẽ được đi qua bên thứ 3 (chạy qua hạ tầng của Fivetran) nên quá trình kiểm duyệt pháp lý sẽ khắt khe hơn.
 
 #### ADF (Azure Data Factory)
 
@@ -145,7 +145,7 @@ Phân orchestration, em chọn dùng airflow do đây cũng là tool đầu tiê
 
 **Cực kỳ linh hoạt (Dynamic Workflows):** Airflow bắt buộc sơ đồ chạy (DAG) phải cố định trước khi chạy. Prefect cho phép thay đổi luồng chạy ngay trong lúc pipeline đang thực thi (ví dụ: nếu dữ liệu lớn hơn 100 dòng thì chạy tiếp, nhỏ hơn thì dừng),
 
-**truyền dữ liệu mượt mà:** Prefect xử lý việc truyền dữ liệu giữa các Task rất tự nhiên như các hàm Python thông thường,có thể chạy code trên máy local của mình nhưng quản lý giao diện, lịch chạy hoàn toàn trên web đám mây miễn phí của Prefect và cái Mage.ai em đề cập ở trên cũng có thể dùng để điều phối.
+**Truyền dữ liệu mượt mà:** Prefect xử lý việc truyền dữ liệu giữa các Task rất tự nhiên như các hàm Python thông thường,có thể chạy code trên máy local của mình nhưng quản lý giao diện, lịch chạy hoàn toàn trên web đám mây miễn phí của Prefect và cái Mage.ai em đề cập ở trên cũng có thể dùng để điều phối.
 
 ---
 
