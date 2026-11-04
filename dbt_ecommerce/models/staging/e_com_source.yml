@@ -1,0 +1,67 @@
+version: 2
+
+sources:
+  - name: e_com_source # Đặt tên cho source
+    database: ecommerce_db # Tên database chứa dữ liệu nguồn  
+    schema: raw_ecommerce # Tên schema chứa dữ liệu nguồn
+    description: "This is the source data for the e-commerce project." # Viết comment cho từng nội dung
+    tables:
+      - name: customer # Tạo test + description cho từng cột trong bảng
+        description: "This table contains customer information."
+        columns:
+          - name: customer_id
+            description: "The unique identifier for each customer."
+            tests:
+              - unique # Test duplicate values
+              - not_null # Test null values
+
+      - name: ecom_sales
+        description: "This table contains sales information."
+        columns:
+          - name: order_id
+            description: "The identifier for each order."
+            tests:
+              - not_null
+          - name: customer_id
+            description: "The unique identifier for the customer who placed the order."
+            tests:
+              - relationships: # Set up foreign key relationship to the customers table
+                  arguments:
+                    to: source('e_com_source', 'customer')
+                    field: customer_id
+          - name: product_code
+            description: "The unique code for the product that was ordered."
+            tests:
+              - relationships: # Set up foreign key relationship to the products table
+                  arguments:
+                    to: source('e_com_source', 'product')
+                    field: product_code
+          - name: region_code
+            description: "The code for the region where the order was placed."
+            tests:
+              - relationships: # Set up foreign key relationship to the regions table
+                  arguments:
+                    to: source('e_com_source', 'region')
+                    field: region_code
+          - name: order_date
+            description: "The date when the order was placed."
+            tests:
+              - not_null
+
+      - name: product
+        description: "This table contains product information."
+        columns:
+          - name: product_code
+            description: "The unique code for each product."
+            tests:
+              - unique
+              - not_null
+
+      - name: region
+        description: "This table contains region information."
+        columns:
+          - name: region_code
+            description: "The unique code for each region."
+            tests:
+              - unique
+              - not_null

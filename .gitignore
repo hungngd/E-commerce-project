@@ -1,0 +1,20 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Credentials
+.dlt/secrets.toml
+.env
+.env.*
+!.env.example
+
+# dbt generated files
+dbt_ecommerce/target/
+dbt_ecommerce/logs/
+dbt_ecommerce/dbt_packages/
+
+# Logs
+*.log
