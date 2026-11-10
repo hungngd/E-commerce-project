@@ -6,7 +6,6 @@ __pycache__/
 *.pyc
 
 # Credentials
-.dlt/secrets.toml
 .env
 .env.*
 !.env.example
@@ -15,6 +14,7 @@ __pycache__/
 dbt_ecommerce/target/
 dbt_ecommerce/logs/
 dbt_ecommerce/dbt_packages/
+dbt_ecommerce/.user.yml
 
 # Logs
 *.log

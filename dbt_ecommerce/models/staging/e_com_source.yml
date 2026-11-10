@@ -36,6 +36,8 @@ sources:
                   arguments:
                     to: source('e_com_source', 'product')
                     field: product_code
+                  config:
+                    severity: warn
           - name: region_code
             description: "The code for the region where the order was placed."
             tests:
@@ -43,6 +45,8 @@ sources:
                   arguments:
                     to: source('e_com_source', 'region')
                     field: region_code
+                  config:
+                    severity: warn
           - name: order_date
             description: "The date when the order was placed."
             tests:
