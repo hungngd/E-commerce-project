@@ -1,19 +1,22 @@
 -- Q14: Customer Segmentation based on RFM (Recency, Frequency, Monetary) analysis
-WITH bound AS(
-    SELECT
-        MAX(order_date) AS last_order_date
+WITH bound AS (
+    SELECT MAX(order_date) AS last_order_date
     FROM {{ ref('stg_ecom_sales') }}
-), customer_details AS (
+),
+
+customer_details AS (
     SELECT
         s.customer_id,
         MAX(s.order_date) AS last_order_customer,
         DATEDIFF('day', MAX(s.order_date), MAX(b.last_order_date)) AS days_since_last_order,
         COUNT(DISTINCT s.order_id) AS total_orders,
         SUM(s.sales) AS total_spent
-    FROM {{ ref('stg_ecom_sales') }} s
-    CROSS JOIN bound b
+    FROM {{ ref('stg_ecom_sales') }} AS s
+    CROSS JOIN bound AS b
     GROUP BY s.customer_id
-), filter_segments AS (
+),
+
+filter_segments AS (
     SELECT
         customer_id,
         days_since_last_order AS recency_days,
@@ -24,6 +27,7 @@ WITH bound AS(
         NTILE(5) OVER (ORDER BY total_spent ASC) AS n_spend
     FROM customer_details
 )
+
 SELECT
     customer_id,
     recency_days,

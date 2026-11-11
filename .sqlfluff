@@ -1,0 +1,19 @@
+[sqlfluff]
+dialect = snowflake
+templater = jinja
+max_line_length = 120
+# RF04: không cho dùng keyword làm tên cột. Project có cột tên month, product
+# lấy từ dữ liệu nguồn, đổi tên sẽ phải sửa cả mart và Power BI
+exclude_rules = RF04
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = True
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = upper

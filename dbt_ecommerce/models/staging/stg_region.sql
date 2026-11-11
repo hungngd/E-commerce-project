@@ -7,4 +7,4 @@ SELECT
     country_longitude,
     region,
     market
-FROM {{source ('e_com_source', 'region') }}
+FROM {{ source ('e_com_source', 'region') }}

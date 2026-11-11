@@ -5,19 +5,22 @@ WITH sale_products AS (
         p.product,
         p.product_code,
         SUM(s.profit) AS total_profit
-    FROM {{ ref('stg_ecom_sales') }} s
-    JOIN {{ ref('stg_product') }} p
+    FROM {{ ref('stg_ecom_sales') }} AS s
+    INNER JOIN {{ ref('stg_product') }} AS p
         ON s.product_code = p.product_code
     GROUP BY p.product, p.category, p.product_code
-), ranked_products AS (
+),
+
+ranked_products AS (
     SELECT
         category,
         product,
         product_code,
         total_profit,
-        ROW_NUMBER() OVER (PARTITION BY category ORDER BY total_profit DESC, product_code) AS rank_in_category
+        ROW_NUMBER() OVER (PARTITION BY category ORDER BY total_profit DESC, product_code ASC) AS rank_in_category
     FROM sale_products
 )
+
 SELECT
     category,
     product,

@@ -4,4 +4,4 @@ dbt-snowflake==1.12.5
 python-dotenv[cli]==1.2.4
 black==26.10.1
 sqlfluff==4.5.0
-sqlfluff-templater-dbt==4.5.0
+dbt-core==1.12.6

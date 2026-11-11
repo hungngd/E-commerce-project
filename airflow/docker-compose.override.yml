@@ -1,0 +1,9 @@
+   services:
+     scheduler:
+       volumes:
+         - ../dbt_ecommerce:/usr/local/airflow/include/dbt_ecommerce
+         - ../dlt_ingestion:/usr/local/airflow/include/dlt_ingestion
+     dag-processor:
+       volumes:
+         - ../dbt_ecommerce:/usr/local/airflow/include/dbt_ecommerce
+         - ../dlt_ingestion:/usr/local/airflow/include/dlt_ingestion

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+
+    env:
+      DBT_ENGINE_MANAGE_STATE: "0"
+      SNOWFLAKE_ACCOUNT: ci_dummy
+      DBT_SNOWFLAKE_USER: ci_dummy
+      DBT_SNOWFLAKE_PASSWORD: ci_dummy
+      DBT_SNOWFLAKE_ROLE: ci_dummy
+      DBT_SNOWFLAKE_WAREHOUSE: ci_dummy
+      DBT_SNOWFLAKE_DATABASE: ECOMMERCE_DB
+      DBT_SNOWFLAKE_SCHEMA: DBT_DEV
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check Python format (black)
+        run: black --check --diff .
+
+      - name: Lint SQL (sqlfluff)
+        run: sqlfluff lint dbt_ecommerce/models
+
+      - name: Validate dbt project (dbt parse)
+        working-directory: dbt_ecommerce
+        run: dbt parse --profiles-dir .
