@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DBT_ENGINE_MANAGE_STATE: "0"
       SNOWFLAKE_ACCOUNT: ci_dummy
       DBT_SNOWFLAKE_USER: ci_dummy
       DBT_SNOWFLAKE_PASSWORD: ci_dummy

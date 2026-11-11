@@ -74,7 +74,6 @@ dbt-snowflake==1.12.5                 # adapter Snowflake cho dbt
 python-dotenv[cli]==1.2.4             # đọc file .env, có lệnh `dotenv run`
 black==26.10.1                        # format code Python
 sqlfluff==4.5.0                       # lint SQL
-sqlfluff-templater-dbt==4.5.0         # cho sqlfluff hiểu Jinja của dbt
 ```
 
 Kiểm tra dbt đang chạy từ `.venv` chứ không phải Python global:
@@ -1177,7 +1176,7 @@ ORDER BY category;
 **Đường dẫn:** `dbt_ecommerce/models/marts/Q10_top_15_total_sales_countries.sql`
 
 ```sql
--- Q10: Top 15 couties by total sales, along with the number of active regions 
+-- Q10: Top 15 countries by total sales, along with the number of active regions 
 -- and total customers and orders in each country.
 SELECT
     r.country,
@@ -1983,7 +1982,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DBT_ENGINE_MANAGE_STATE: "0"
       SNOWFLAKE_ACCOUNT: ci_dummy
       DBT_SNOWFLAKE_USER: ci_dummy
       DBT_SNOWFLAKE_PASSWORD: ci_dummy
@@ -2031,8 +2029,6 @@ dbt parse                 → đọc toàn bộ project dbt, kiểm tra ref(), s
 #### Vì sao dùng giá trị giả trong `env`
 
 `profiles.yml` lấy giá trị bằng `env_var()`, nên dbt cần các biến này tồn tại. Nhưng `dbt parse` **chỉ đọc project, không kết nối Snowflake**, nên giá trị giả (`ci_dummy`) là đủ. Repo không phải lưu mật khẩu thật lên GitHub Secrets.
-
-`DBT_ENGINE_MANAGE_STATE: "0"` tắt dbt State, một tính năng của dbt cần đăng nhập tài khoản dbt Cloud mà project không dùng. Biến này cũng có trong `.env` (mục 3).
 
 Bước nào lỗi thì các bước sau không chạy và cả lần chạy báo đỏ.
 
