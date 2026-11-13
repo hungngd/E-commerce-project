@@ -113,8 +113,9 @@ E-commerce-project/
 │       │   └── stg_region.sql
 │       └── marts/
 │           ├── Q1_total_rev_profit.sql
-│           ├── ... (Q2 đến Q14)
-│           └── Q15_pair_products.sql
+│           ├── ... (Q2 đến Q15)
+│           ├── Q16_discount_band_profit.sql
+│           └── Q17_yearly_profit_discount_impact.sql
 ├── airflow/
 │   ├── dags/
 │   │   └── ecommerce_pipeline.py     # DAG: dlt >> dbt
@@ -624,7 +625,7 @@ Snowflake: ECOMMERCE_DB.RAW_ECOMMERCE
     ↓ dbt source() / staging views
 Snowflake: ECOMMERCE_DB.DBT_DEV.STG_*
     ↓ dbt ref() / marts
-Snowflake: ECOMMERCE_DB.DBT_DEV.Q1_* ... Q15_*
+Snowflake: ECOMMERCE_DB.DBT_DEV.Q1_* ... Q17_*
 ```
 
 ### 12.1. Full dlt ingestion script
@@ -915,7 +916,7 @@ dotenv -f ..\.env run -- dbt show -s Q11_yoy_growth_pct --limit 20 --profiles-di
 
 ---
 
-## 13. Business Mart Models (Q1 đến Q15)
+## 13. Business Mart Models (Q1 đến Q17)
 
 Thư mục: `dbt_ecommerce/models/marts/`
 
@@ -1451,6 +1452,127 @@ LIMIT 15
 
 > Ý tưởng là ta sẽ phải tạo ra được 1 bảng sao cho có cột product a và cột product b tương ứng với 1 cặp sản phẩm. Ta có thể JOIN 2 bảng trùng nhau lại nhưng phải để ý điều kiện khi JOIN (tránh việc product_code a trùng với product_code b). Khi đã có bảng mới tương ứng với các cặp sản phẩm thì ta sẽ đếm xem các cặp xuất hiện bao nhiêu lần.
 
+### Q16: `Q16_discount_band_profit.sql`
+
+**Đường dẫn:** `dbt_ecommerce/models/marts/Q16_discount_band_profit.sql`
+
+Q5 mới chỉ tính mức giảm giá trung bình theo category, chưa đặt giảm giá cạnh lợi nhuận. Q16 trả lời trực tiếp câu hỏi "giảm giá bao nhiêu thì bắt đầu lỗ".
+
+```sql
+-- Q16: Profit margin by discount band.
+-- At which discount level do order lines start to lose money?
+WITH banded AS (
+    SELECT
+        order_id,
+        sales,
+        profit,
+        CASE
+            WHEN discount = 0 THEN '1. 0%'
+            WHEN discount <= 0.1 THEN '2. 1-10%'
+            WHEN discount <= 0.2 THEN '3. 11-20%'
+            WHEN discount <= 0.4 THEN '4. 21-40%'
+            ELSE '5. >40%'
+        END AS discount_band
+    FROM {{ ref('stg_ecom_sales') }}
+)
+
+SELECT
+    discount_band,
+    COUNT(*) AS total_lines,
+    COUNT(DISTINCT order_id) AS total_orders,
+    SUM(sales) AS total_sales,
+    SUM(profit) AS total_profit,
+    CAST(
+        100.0 * SUM(profit) / NULLIF(SUM(sales), 0) AS DECIMAL(6, 2)
+    ) AS profit_margin,
+    CAST(
+        100.0 * SUM(sales) / SUM(SUM(sales)) OVER () AS DECIMAL(5, 2)
+    ) AS pct_of_total_sales,
+    CAST(
+        100.0 * SUM(CASE WHEN profit < 0 THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5, 2)
+    ) AS pct_loss_lines
+FROM banded
+GROUP BY discount_band
+ORDER BY discount_band
+```
+
+**Ý tưởng:**
+
+> Chia từng dòng bán hàng vào 5 nhóm mức giảm giá bằng CASE WHEN, rồi GROUP BY theo nhóm để tính doanh thu, lợi nhuận, biên lợi nhuận và tỷ lệ dòng bị lỗ. `SUM(SUM(sales)) OVER ()` là window function chạy sau GROUP BY, cho ra tổng doanh thu toàn bảng để tính mỗi nhóm chiếm bao nhiêu phần trăm.
+
+**Kết quả (dữ liệu 2020-2023, 51.290 dòng):**
+
+| Nhóm giảm giá | Số dòng | Doanh thu | Lợi nhuận | Biên lợi nhuận | Tỷ lệ dòng lỗ |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| 0% | 29.470 | 3.647.815 | 1.141.918 | 31,30% | 0,00% |
+| 1-10% | 4.218 | 563.810 | 113.451 | 20,12% | 0,00% |
+| 11-20% | 6.315 | 832.883 | 98.227 | 11,79% | 43,50% |
+| 21-40% | 4.430 | 594.576 | -51.387 | -8,64% | 52,05% |
+| >40% | 6.857 | 878.590 | -236.794 | -26,95% | 87,33% |
+
+**Nhận định:**
+
+> Biên lợi nhuận giảm dần theo mức giảm giá và chuyển sang âm từ mức trên 20%. Hai nhóm trên 20% chiếm khoảng 23% doanh thu nhưng lỗ 288.181, bằng 27% tổng lợi nhuận cả giai đoạn (1.065.414).
+>
+> Đề xuất: đặt trần giảm giá 20%, đơn nào cần giảm sâu hơn phải được duyệt riêng.
+
+### Q17: `Q17_yearly_profit_discount_impact.sql`
+
+**Đường dẫn:** `dbt_ecommerce/models/marts/Q17_yearly_profit_discount_impact.sql`
+
+```sql
+-- Q17: Split yearly profit into deep-discount lines (discount > 20%) and the rest.
+-- Explains why profit fell in 2023 while sales kept growing.
+WITH yearly AS (
+    SELECT
+        YEAR(order_date) AS order_year,
+        SUM(sales) AS total_sales,
+        SUM(profit) AS total_profit,
+        SUM(CASE WHEN discount > 0.2 THEN sales ELSE 0 END) AS deep_discount_sales,
+        SUM(CASE WHEN discount > 0.2 THEN profit ELSE 0 END) AS deep_discount_profit,
+        SUM(CASE WHEN discount <= 0.2 THEN profit ELSE 0 END) AS other_profit
+    FROM {{ ref('stg_ecom_sales') }}
+    GROUP BY YEAR(order_date)
+)
+
+SELECT
+    order_year,
+    total_sales,
+    total_profit,
+    deep_discount_profit,
+    other_profit,
+    CAST(
+        100.0 * total_profit / NULLIF(total_sales, 0) AS DECIMAL(5, 2)
+    ) AS profit_margin,
+    CAST(
+        100.0 * deep_discount_sales / NULLIF(total_sales, 0) AS DECIMAL(5, 2)
+    ) AS pct_sales_deep_discount,
+    total_profit - LAG(total_profit) OVER (ORDER BY order_year) AS profit_change,
+    deep_discount_profit
+    - LAG(deep_discount_profit) OVER (ORDER BY order_year) AS deep_discount_profit_change
+FROM yearly
+ORDER BY order_year
+```
+
+**Ý tưởng:**
+
+> Tách lợi nhuận mỗi năm thành hai phần bằng conditional aggregation: phần đến từ các dòng giảm giá trên 20% và phần còn lại. Sau đó dùng LAG để tính mỗi phần thay đổi bao nhiêu so với năm trước. Phần nào thay đổi nhiều nhất thì đó là nguyên nhân chính.
+
+**Kết quả:**
+
+| Năm | Doanh thu | Lợi nhuận | Biên lợi nhuận | % doanh thu giảm giá >20% | Lợi nhuận nhóm giảm giá >20% | Lợi nhuận phần còn lại |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2020 | 1.148.361 | 207.116 | 18,04% | 22,97% | -46.099 | 253.216 |
+| 2021 | 1.405.876 | 259.697 | 18,47% | 21,23% | -53.586 | 313.283 |
+| 2022 | 1.770.790 | 318.672 | 18,00% | 22,49% | -77.331 | 396.003 |
+| 2023 | 2.192.647 | 279.929 | 12,77% | 23,38% | -111.165 | 391.094 |
+
+**Nhận định:**
+
+> Năm 2023 doanh thu tăng 24% nhưng lợi nhuận giảm 12% (giảm 38.743). Khoản lỗ của nhóm giảm giá trên 20% tăng thêm 33.834, tức là giải thích được 87% mức sụt. Lợi nhuận phần còn lại gần như đi ngang (396.003 xuống 391.094) dù doanh thu tăng mạnh, nên đây cũng là điểm cần xem tiếp.
+>
+> Biên lợi nhuận năm 2023 giảm ở cả 5 thị trường, mạnh nhất ở Asia Pacific (13,37% xuống 7,21%). Đề xuất trần giảm giá 20% ở Q16 vì vậy nên áp dụng cho mọi thị trường.
+
 ---
 
 ## 14. Orchestration with Airflow
@@ -1748,7 +1870,7 @@ profile_config                           = cách kết nối Snowflake
 ExecutionConfig(dbt_executable_path=...) = dùng dbt trong dbt_venv
 ```
 
-`partial_parse=False`: dbt không dùng file nhớ tạm `target/partial_parse.msgpack`. File này do dbt trên Windows tạo, ghi đường dẫn bằng dấu `\` nên dbt trên Linux không đọc được. Với 19 model, đọc lại toàn bộ chỉ tốn thêm vài giây.
+`partial_parse=False`: dbt không dùng file nhớ tạm `target/partial_parse.msgpack`. File này do dbt trên Windows tạo, ghi đường dẫn bằng dấu `\` nên dbt trên Linux không đọc được. Với 21 model, đọc lại toàn bộ chỉ tốn thêm vài giây.
 
 > Cosmos mặc định không tạo task cho **source**, nên các test trong `e_com_source.yml` chưa chạy trong Airflow. Test khai báo cho model staging/mart sẽ được tạo thành task `<model>_test` chạy ngay sau model đó.
 
@@ -1769,7 +1891,7 @@ dbt_transform
     ├── stg_product_run
     └── stg_region_run
             ↓
-    Q1_..._run ... Q15_..._run
+    Q1_..._run ... Q17_..._run
 ```
 
 ### 14.8. Run the DAG
@@ -2070,7 +2192,7 @@ Project hiện chạy Airflow trên máy local nên chưa có môi trường đ�
 Power BI đọc các bảng mart do dbt tạo:
 
 ```text
-Snowflake: ECOMMERCE_DB.DBT_DEV.Q1_* ... Q15_*
+Snowflake: ECOMMERCE_DB.DBT_DEV.Q1_* ... Q17_*
         ↓
 Power BI Desktop (Snowflake connector)
 ```
@@ -2118,11 +2240,11 @@ Mỗi trang dashboard trả lời một vấn đề kinh doanh trong đề bài 
 
 ```text
 Trang 1: Overview               → Q1, Q2
-Trang 2: Discount & Profit      → Q5, Q7     (discount có làm giảm lợi nhuận không?)
+Trang 2: Discount & Profit      → Q5, Q7, Q16, Q17 (discount có làm giảm lợi nhuận không?)
 Trang 3: Segment Profitability  → Q2, Q7, Q9 (segment nào lời nhất?)
 Trang 4: Markets & Growth       → Q6, Q10, Q11 (thị trường nào đang tăng trưởng?)
 Trang 5: Customers              → Q8, Q13, Q14 (khách hàng có quay lại mua không?)
 Trang 6: Products               → Q3, Q12, Q15
 ```
 
-> Các bảng Q1 đến Q15 là kết quả đã tổng hợp sẵn, phù hợp để hiển thị nhưng khó lọc thêm (ví dụ lọc theo năm hoặc theo quốc gia trên cùng một trang). Nếu dashboard cần slicer linh hoạt, có thể bổ sung trong dbt một lớp model dạng fact/dimension (ví dụ `fct_sales`, `dim_customer`, `dim_product`, `dim_region`) để Power BI tự tổng hợp.
+> Các bảng Q1 đến Q17 là kết quả đã tổng hợp sẵn, phù hợp để hiển thị nhưng khó lọc thêm (ví dụ lọc theo năm hoặc theo quốc gia trên cùng một trang). Nếu dashboard cần slicer linh hoạt, có thể bổ sung trong dbt một lớp model dạng fact/dimension (ví dụ `fct_sales`, `dim_customer`, `dim_product`, `dim_region`) để Power BI tự tổng hợp.
