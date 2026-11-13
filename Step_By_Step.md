@@ -1478,10 +1478,6 @@ WITH banded AS (
 
 SELECT
     discount_band,
-    COUNT(*) AS total_lines,
-    COUNT(DISTINCT order_id) AS total_orders,
-    SUM(sales) AS total_sales,
-    SUM(profit) AS total_profit,
     CAST(
         100.0 * SUM(profit) / NULLIF(SUM(sales), 0) AS DECIMAL(6, 2)
     ) AS profit_margin,
@@ -1490,7 +1486,11 @@ SELECT
     ) AS pct_of_total_sales,
     CAST(
         100.0 * SUM(CASE WHEN profit < 0 THEN 1 ELSE 0 END) / COUNT(*) AS DECIMAL(5, 2)
-    ) AS pct_loss_lines
+    ) AS pct_loss_lines,
+    COUNT(*) AS total_lines,
+    COUNT(DISTINCT order_id) AS total_orders,
+    SUM(sales) AS total_sales,
+    SUM(profit) AS total_profit
 FROM banded
 GROUP BY discount_band
 ORDER BY discount_band
